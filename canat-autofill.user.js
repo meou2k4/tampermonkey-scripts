@@ -192,3 +192,80 @@
   observer.observe(document.body, { childList: true, subtree: true });
   scan();
 })();
+// Enter trong 5 ô CAN → bấm Add Step.
+(() => {
+  "use strict";
+
+  const names = new Set([
+    "message_id",
+    "cycle_time",
+    "can_message",
+    "bus_channel",
+    "message_type"
+  ]);
+
+  const visible = el =>
+    el.isConnected &&
+    el.getClientRects().length > 0 &&
+    getComputedStyle(el).visibility !== "hidden";
+
+  let adding = false;
+
+  document.addEventListener("keydown", event => {
+    const input = event.target;
+
+    if (event.key !== "Enter" ||
+        event.isComposing ||
+        event.ctrlKey || event.altKey || event.shiftKey || event.metaKey ||
+        !(input instanceof HTMLInputElement) ||
+        input.disabled || input.readOnly) return;
+
+    // Chỉ nhận input nằm cùng hàng với nhãn của một ô CAN.
+    const row = input.parentElement;
+    const tag = row?.querySelector(":scope > span.ant-tag");
+    const name = tag?.textContent.replace(/\*/g, "").trim();
+
+    if (!names.has(name) || row.querySelector("input") !== input) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    // Giữ Enter không tạo nhiều Step.
+    if (event.repeat || adding) return;
+
+    // Ưu tiên nút trong card chứa form đang nhập.
+    const card = input.closest(".ant-card");
+    const findButtons = root =>
+      [...root.querySelectorAll(".ant-card-extra button")]
+        .filter(button =>
+          visible(button) &&
+          button.textContent.trim() === "Add Step"
+        );
+
+    let buttons = card ? findButtons(card) : [];
+    if (buttons.length === 0) buttons = findButtons(document);
+
+    if (buttons.length !== 1) {
+      alert("Không xác định được duy nhất nút Add Step. Hãy bấm nút bằng tay.");
+      return;
+    }
+
+    if (buttons[0].disabled ||
+        buttons[0].getAttribute("aria-disabled") === "true" ||
+        buttons[0].classList.contains("ant-btn-loading")) return;
+
+    adding = true;
+
+    // Rời ô để web ghi nhận giá trị trước khi thêm Step.
+    input.blur();
+
+    setTimeout(() => {
+      try {
+        const button = buttons[0];
+        if (visible(button) && !button.disabled) button.click();
+      } finally {
+        setTimeout(() => { adding = false; }, 500);
+      }
+    }, 50);
+  }, true);
+})();
